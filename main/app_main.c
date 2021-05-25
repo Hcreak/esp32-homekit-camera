@@ -75,4 +75,6 @@ void app_main(void) {
     }
 
     wifi_init();
+    
+    xTaskCreate(&DHT_task, "DHT_task", 2048, NULL, 5, NULL);
 }

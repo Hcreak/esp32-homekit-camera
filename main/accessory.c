@@ -17,6 +17,7 @@
 #include "camera_session.h"
 #include "crypto.h"
 #include "streaming.h"
+#include "dht11.h"
 
 #define STREAMING_STATUS_AVAILABLE 0
 #define STREAMING_STATUS_IN_USE 1
@@ -52,6 +53,60 @@ void led_set(bool on) {
 #endif
 }
 
+
+static homekit_value_t temperature_value = HOMEKIT_FLOAT(0);
+static homekit_value_t status_active_value = HOMEKIT_BOOL(false);
+
+homekit_value_t temperature_getter() {
+    printf("temperature_getter\n");
+
+    return temperature_value;
+}
+homekit_value_t status_active_getter() {
+    printf("status_active_getter\n");
+
+    return status_active_value;
+}
+
+homekit_characteristic_t current_temperature = HOMEKIT_CHARACTERISTIC_(CURRENT_TEMPERATURE, 0, .getter=temperature_getter);
+homekit_characteristic_t status_active = HOMEKIT_CHARACTERISTIC_(STATUS_ACTIVE, 0, .getter=status_active_getter);
+
+
+void DHT_task(void *pvParameter)
+{
+    printf("Waiting 1 second to start DHT measurement...\n");
+    vTaskDelay(1000 / portTICK_RATE_MS);
+
+    printf("Starting DHT measurement!\n");
+    while(1)
+    {
+        int temp = getTemp();
+
+        if (temp == DHT_CHECKSUM_ERROR) {
+            printf("Checksum error, skipping\n");
+
+            status_active_value.bool_value = false;
+            homekit_characteristic_notify(&status_active, status_active_value);
+        } else if (temp == DHT_TIMEOUT_ERROR) {
+            printf("Timeout error, skipping\n");
+
+            status_active_value.bool_value = false;
+            homekit_characteristic_notify(&status_active, status_active_value);
+        } else {
+            printf("Temperature reading %d\n",temp);
+
+            temperature_value.float_value = (float) temp;
+            homekit_characteristic_notify(&current_temperature, temperature_value);
+
+            status_active_value.bool_value = true;
+            homekit_characteristic_notify(&status_active, status_active_value);
+        }
+
+        vTaskDelay(5000 / portTICK_RATE_MS);
+    }
+}
+
+
 void camera_identify_task(void *_args) {
     for (int i=0; i<3; i++) {
         for (int j=0; j<2; j++) {
@@ -72,6 +127,11 @@ void camera_identify_task(void *_args) {
 void camera_identify(homekit_value_t _value) {
     printf("Camera identify\n");
     xTaskCreate(camera_identify_task, "Camera identify", 512, NULL, 2, NULL);
+}
+
+
+void sensor_identify(homekit_value_t _value) {
+    printf("Sensor identify\n");
 }
 
 
@@ -555,7 +615,6 @@ void camera_on_event(homekit_event_t event) {
     }
 }
 
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Woverride-init"
 homekit_accessory_t *accessories[] = {
@@ -602,6 +661,24 @@ homekit_accessory_t *accessories[] = {
         HOMEKIT_SERVICE(MICROPHONE, .characteristics=(homekit_characteristic_t*[]){
             HOMEKIT_CHARACTERISTIC(VOLUME, 0),
             HOMEKIT_CHARACTERISTIC(MUTE, false),
+            NULL
+        }),
+        NULL
+    }),
+    HOMEKIT_ACCESSORY(.id=2, .category=homekit_accessory_category_sensor, .services=(homekit_service_t*[]){
+        HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics=(homekit_characteristic_t*[]){
+            HOMEKIT_CHARACTERISTIC(NAME, "Temperature Sensor"),
+            HOMEKIT_CHARACTERISTIC(MANUFACTURER, "Ruud"),
+            HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "1337"),
+            HOMEKIT_CHARACTERISTIC(MODEL, "MyLED"),
+            HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, "0.1"),
+            HOMEKIT_CHARACTERISTIC(IDENTIFY, sensor_identify),
+            NULL
+        }),
+        HOMEKIT_SERVICE(TEMPERATURE_SENSOR, .primary=true, .characteristics=(homekit_characteristic_t*[]){
+            HOMEKIT_CHARACTERISTIC(NAME, "Temperature Sensor"),
+            &current_temperature,
+            &status_active,
             NULL
         }),
         NULL

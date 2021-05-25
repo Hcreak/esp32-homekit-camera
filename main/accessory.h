@@ -5,3 +5,4 @@
 
 void camera_accessory_init();
 void camera_accessory_set_ip_address(ip4_addr_t ip);
+void DHT_task(void *pvParameter);
