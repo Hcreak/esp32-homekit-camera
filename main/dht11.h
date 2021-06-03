@@ -28,7 +28,7 @@ void errorHandle(int response);
 int getData(int type);
 //call each function for live temperature updates
 //if you only need one measurements use these functions
-int getFtemp();
+// int getFtemp();
 int getTemp();
 int getHumidity();
 #endif

@@ -165,9 +165,9 @@ int getData(int type)
     }
     humidity = bits[0];
     temperature = bits[2];
-    Ftemperature = temperature * 1.8 + 32;
+    // Ftemperature = temperature * 1.8 + 32;
 
-    uint8_t sum = bits[0] + bits[2];
+    uint8_t sum = bits[0] + bits[1] + bits[2] + bits[3];
 
     if (bits[4] != sum)
     {
@@ -180,20 +180,20 @@ int getData(int type)
     if(type==1){
         return temperature;
     }
-    if(type==2){
-        return Ftemperature;
-    }
+    // if(type==2){
+    //     return Ftemperature;
+    // }
 
     return -1;
 }
 
-int getFtemp()
-{
-    taskENTER_CRITICAL(&mux);
-    int Data  = getData(0);
-    taskEXIT_CRITICAL(&mux);
-    return Data;
-}
+// int getFtemp()
+// {
+//     taskENTER_CRITICAL(&mux);
+//     int Data  = getData(0);
+//     taskEXIT_CRITICAL(&mux);
+//     return Data;
+// }
 int getTemp()
 {
     taskENTER_CRITICAL(&mux);
